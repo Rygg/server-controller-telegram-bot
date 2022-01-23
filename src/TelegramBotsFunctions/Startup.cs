@@ -1,9 +1,9 @@
 ﻿using Microsoft.Azure.Functions.Extensions.DependencyInjection;
-using TelegramBotsFunctionsApp;
-using TelegramBotsFunctionsApp.Extensions;
+using TelegramBotsFunctions;
+using TelegramBotsFunctions.Extensions;
 
 [assembly: FunctionsStartup(typeof(Startup))]
-namespace TelegramBotsFunctionsApp
+namespace TelegramBotsFunctions
 {
     /// <summary>
     /// Startup configuration to support dependency injections.

@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using TelegramBotsFunctionsApp.Interfaces;
-using TelegramBotsFunctionsApp.Services;
+using TelegramBotsFunctions.Interfaces;
+using TelegramBotsFunctions.Services;
 
-namespace TelegramBotsFunctionsApp.Extensions
+namespace TelegramBotsFunctions.Extensions
 {
     /// <summary>
     /// Extensions for ServiceCollection.

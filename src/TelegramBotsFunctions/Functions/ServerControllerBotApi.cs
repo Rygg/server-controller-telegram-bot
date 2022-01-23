@@ -7,9 +7,9 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Telegram.Bot.Types;
-using TelegramBotsFunctionsApp.Interfaces;
+using TelegramBotsFunctions.Interfaces;
 
-namespace TelegramBotsFunctionsApp.APIs
+namespace TelegramBotsFunctions.Functions
 {
     /// <summary>
     /// Class contains endpoints for ServerControllerBot requests.

@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Telegram.Bot.Types;
 
-namespace TelegramBotsFunctionsApp.Interfaces
+namespace TelegramBotsFunctions.Interfaces
 {
     /// <summary>
     /// Interface for ServerControllerBotService implementations.

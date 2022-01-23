@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using TelegramBotsFunctionsApp.Interfaces;
+using TelegramBotsFunctions.Interfaces;
 
-namespace TelegramBotsFunctionsApp.Services
+namespace TelegramBotsFunctions.Services
 {
     /// <summary>
     /// Service-class implementing the <see cref="IServerControllerBotService"/>-interface.
