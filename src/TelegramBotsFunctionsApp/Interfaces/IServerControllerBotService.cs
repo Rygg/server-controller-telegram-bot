@@ -12,7 +12,7 @@ namespace TelegramBotsFunctionsApp.Interfaces
         /// Task processes the <see cref="Update"/> received from the ServerController bot.
         /// </summary>
         /// <param name="updateObject">The received update object.</param>
-        /// <returns>An object representing the result of the operation.</returns>
-        Task<object> ProcessBotUpdateMessage(Update updateObject);
+        /// <returns>A boolean value representing the result of the operation.</returns>
+        Task<bool> ProcessBotUpdateMessage(Update updateObject);
     }
 }

@@ -33,13 +33,13 @@ namespace TelegramBotsFunctionsApp.APIs
         /// <summary>
         /// Endpoint triggered by the ServerController bot.
         /// </summary>
-        /// <param name="req">Request posted by the bot.</param>
+        /// <param name="request">Request posted by the bot.</param>
         /// <param name="log">Injected logger.</param>
         /// <returns></returns>
         [FunctionName("ServerControllerBotWebhookEndpoint")]
         public async Task<IActionResult> ServerControllerBotWebhookEndpoint(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "bots/serverController/webhookEndpoint")]
-            HttpRequest req, ILogger log)
+            HttpRequest request, ILogger log)
         {
             log.LogInformation($"{nameof(ServerControllerBotWebhookEndpoint)} triggered.");
             try
@@ -47,9 +47,13 @@ namespace TelegramBotsFunctionsApp.APIs
                 Update updateObject;
                 try
                 {
-                    var jsonContent = await req.ReadAsStringAsync(); // Read request content.
+                    var jsonContent = await request.ReadAsStringAsync(); // Read request content.
                     updateObject = JsonConvert.DeserializeObject<Update>(jsonContent); // Deserialize to the telegram update format.
-                    log.LogInformation("Parsing message succeeded.");
+                    if (updateObject == null)
+                    {
+                        throw new ArgumentNullException(nameof(request), "Request payload was null.");
+                    }
+                    log.LogInformation("Request parsing succeeded.");
                 }
                 catch (Exception ex)
                 {
@@ -58,8 +62,8 @@ namespace TelegramBotsFunctionsApp.APIs
                 }
 
                 // Process the received update and get the result object.
-                var resultObject = await _serverControllerBotService.ProcessBotUpdateMessage(updateObject);
-                // TODO: Check result
+                var operationSuccess = await _serverControllerBotService.ProcessBotUpdateMessage(updateObject);
+                // TODO: Handle result.
                 return new OkResult(); // Respond 200.
             }
             catch (Exception ex)
