@@ -22,6 +22,10 @@ namespace TelegramBotsFunctions.Services
         /// </summary>
         private readonly IVirtualMachineService _virtualMachineService;
         /// <summary>
+        /// Injected game server controller service.
+        /// </summary>
+        private readonly IGameServerControllerService _gameServerControllerService;
+        /// <summary>
         /// ServerController telegram bot client.
         /// </summary>
         private readonly ITelegramBotClient _botClient;
@@ -32,10 +36,11 @@ namespace TelegramBotsFunctions.Services
         /// <param name="logger">Injected logger.</param>
         /// <param name="virtualMachineService">Injected virtual machine service.</param>
         /// <exception cref="ArgumentNullException">A required application setting was not located.</exception>
-        public ServerControllerBotService(ILogger<ServerControllerBotService> logger, IVirtualMachineService virtualMachineService)
+        public ServerControllerBotService(ILogger<ServerControllerBotService> logger, IVirtualMachineService virtualMachineService, IGameServerControllerService gameServerService)
         {
             _logger = logger;
             _virtualMachineService = virtualMachineService;
+            _gameServerControllerService = gameServerService;
 
             var serverControllerBotToken = Environment.GetEnvironmentVariable("ServerControllerBotToken");
             if (serverControllerBotToken == null)

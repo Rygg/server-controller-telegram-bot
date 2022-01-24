@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http.Headers;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using TelegramBotsFunctions.Interfaces;
 using TelegramBotsFunctions.Services;
@@ -19,6 +20,7 @@ namespace TelegramBotsFunctions.Extensions
         {
             serviceCollection.AddScoped<IServerControllerBotService, ServerControllerBotService>();
             serviceCollection.AddScoped<IVirtualMachineService, VirtualMachineService>(); // Scoped or Transient required.
+            serviceCollection.AddScoped<IGameServerControllerService, GameServerControllerService>();
         }
         /// <summary>
         /// Add http clients.
@@ -39,7 +41,23 @@ namespace TelegramBotsFunctions.Extensions
                 c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             });
 
-            // TODO: Add virtual machine client.
+            var gameServerUri = Environment.GetEnvironmentVariable("GameServerUri");
+            if (string.IsNullOrWhiteSpace(gameServerUri))
+            {
+                throw new ArgumentNullException(nameof(gameServerUri), "URI for game server missing from application settings.");
+            }
+            var gameServerAuthKey = Environment.GetEnvironmentVariable("GameServerAuthKey");
+            if (string.IsNullOrWhiteSpace(gameServerAuthKey))
+            {
+                throw new ArgumentNullException(nameof(gameServerAuthKey), "Authorization key for game server missing from application settings.");
+            }
+
+            serviceCollection.AddHttpClient("GameServerClient", c =>
+            {
+                c.BaseAddress = new Uri(gameServerUri);
+                c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(gameServerAuthKey)));
+            });
         }
     }
 }
