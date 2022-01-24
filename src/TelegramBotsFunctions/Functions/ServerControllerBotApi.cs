@@ -36,7 +36,7 @@ namespace TelegramBotsFunctions.Functions
         /// <param name="request">Request posted by the bot.</param>
         /// <param name="log">Injected logger.</param>
         /// <returns></returns>
-        [FunctionName("ServerControllerBotWebhookEndpoint")]
+        [FunctionName(nameof(ServerControllerBotWebhookEndpoint))]
         public async Task<IActionResult> ServerControllerBotWebhookEndpoint(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "bots/serverController/webhookEndpoint")]
             HttpRequest request, ILogger log)
@@ -63,7 +63,10 @@ namespace TelegramBotsFunctions.Functions
 
                 // Process the received update and get the result object.
                 var operationSuccess = await _serverControllerBotService.ProcessBotUpdateMessageAsync(updateObject);
-                // TODO: Handle result.
+                if (!operationSuccess)
+                {
+                    log.LogError("Something went wrong with the operation. Returning 200 to stop bot from retrying.");
+                }
                 return new OkResult(); // Respond 200.
             }
             catch (Exception ex)
