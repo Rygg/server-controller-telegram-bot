@@ -13,6 +13,6 @@ namespace TelegramBotsFunctions.Interfaces
         /// </summary>
         /// <param name="updateObject">The received update object.</param>
         /// <returns>A boolean value representing the result of the operation.</returns>
-        Task<bool> ProcessBotUpdateMessage(Update updateObject);
+        Task<bool> ProcessBotUpdateMessageAsync(Update updateObject);
     }
 }

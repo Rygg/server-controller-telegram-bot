@@ -16,6 +16,7 @@ namespace TelegramBotsFunctions.Extensions
         internal static void AddServices(this IServiceCollection serviceCollection)
         {
             serviceCollection.AddTransient<IServerControllerBotService, ServerControllerBotService>();
+            serviceCollection.AddTransient<IVirtualMachineService, VirtualMachineService>();
         }
 
         internal static void AddHttpClients(this IServiceCollection serviceCollection)

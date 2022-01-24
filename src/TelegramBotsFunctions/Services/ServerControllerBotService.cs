@@ -18,17 +18,24 @@ namespace TelegramBotsFunctions.Services
         /// </summary>
         private readonly ILogger<ServerControllerBotService> _logger;
         /// <summary>
+        /// Injected virtual machine service.
+        /// </summary>
+        private readonly IVirtualMachineService _virtualMachineService;
+        /// <summary>
         /// ServerController telegram bot client.
         /// </summary>
         private readonly ITelegramBotClient _botClient;
+
         /// <summary>
         /// Constructor for the service.
         /// </summary>
         /// <param name="logger">Injected logger.</param>
+        /// <param name="virtualMachineService">Injected virtual machine service.</param>
         /// <exception cref="ArgumentNullException">A required application setting was not located.</exception>
-        public ServerControllerBotService(ILogger<ServerControllerBotService> logger)
+        public ServerControllerBotService(ILogger<ServerControllerBotService> logger, IVirtualMachineService virtualMachineService)
         {
             _logger = logger;
+            _virtualMachineService = virtualMachineService;
 
             var serverControllerBotToken = Environment.GetEnvironmentVariable("ServerControllerBotToken");
             if (serverControllerBotToken == null)
@@ -43,51 +50,103 @@ namespace TelegramBotsFunctions.Services
         /// </summary>
         /// <param name="updateObject">The received update object.</param>
         /// <returns>A boolean value representing the result of the operation.</returns>
-        public async Task<bool> ProcessBotUpdateMessage(Update updateObject)
+        public async Task<bool> ProcessBotUpdateMessageAsync(Update updateObject)
         {
-            var message = updateObject.Message;
-            if (message?.Text == null)
+            try
             {
-                _logger.LogInformation("Update contained no valid message. Not handling.");
+                var message = updateObject.Message;
+                if (message?.Text == null)
+                {
+                    _logger.LogInformation("Update contained no valid message. Not handling.");
+                    return false;
+                }
+
+                if (message.From == null)
+                {
+                    _logger.LogInformation("Message contained no sender. Not continuing.");
+                    return false;
+                }
+
+                _logger.LogInformation("Received message: '{0}' from telegram user. UserId: {1}, UserName: {2}", message.Text, message.From.Id, message.From.Username);
+
+                var splitMessageText = message.Text.Split(null); // Split at whitespaces.
+                var command = splitMessageText[0]; // Get the command from the first part of the command.
+                var parameters = splitMessageText.Skip(1).ToArray(); // Get the rest as parameters.
+
+                // Check for supported command.
+                switch (command)
+                {
+                    case SupportedCommands.StartVirtualMachine:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    case SupportedCommands.StopVirtualMachine:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    case SupportedCommands.GetVirtualMachineStatus: // Status supported without authorization.
+                        var result = await _virtualMachineService.IsVirtualMachineRunningAsync();
+                        break;
+                    case SupportedCommands.GetAcTracks: // Track listing supported without authorization.
+                        break;
+                    case SupportedCommands.StartAcServer:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    case SupportedCommands.StopAcServer:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    case SupportedCommands.RestartAcServer:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    case SupportedCommands.StartCsServer:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    case SupportedCommands.StopCsServer:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    case SupportedCommands.StartValheimServer:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    case SupportedCommands.StopValheimServer:
+                        CheckUserAuthorized(message.From);
+                        break;
+                    default:
+                        _logger.LogError("Unsupported command: {0}.", command);
+                        return false;
+                }
+
+                throw new NotImplementedException();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception occurred while processing bot update message.");
                 return false;
             }
-            _logger.LogInformation("Received message: '{0}' from telegram user. UserId: {1}, UserName: {2}", message.Text, message.From?.Id, message.From?.Username);
+        }
 
-            var splitMessageText = message.Text.Split(null); // Split at whitespaces.
-            var command = splitMessageText[0]; // Get the command from the first part of the command.
-            var parameters = splitMessageText.Skip(1).ToArray(); // Get the rest as parameters.
-
-            // Check for supported command.
-            switch (command)
+        /// <summary>
+        /// Validate the message sender.
+        /// </summary>
+        /// <param name="user">User who sent the message.</param>
+        /// <returns>Nothing if successful.</returns>
+        /// <exception cref="ArgumentException">User was not authorized.</exception>
+        /// <exception cref="ArgumentNullException">Required configurations not found.</exception>
+        private void CheckUserAuthorized(User user)
+        {
+            var acceptedUserIds = Environment.GetEnvironmentVariable("AcceptedUserIds"); // Get acceptable userIds for restricted commands.
+            if (acceptedUserIds == null)
             {
-                case SupportedCommands.StartVirtualMachine:
-                    break;
-                case SupportedCommands.StopVirtualMachine:
-                    break;
-                case SupportedCommands.GetVirtualMachineStatus:
-                    break;
-                case SupportedCommands.GetAcTracks:
-                    break;
-                case SupportedCommands.StartAcServer:
-                    break;
-                case SupportedCommands.StopAcServer:
-                    break;
-                case SupportedCommands.RestartAcServer:
-                    break;
-                case SupportedCommands.StartCsServer:
-                    break;
-                case SupportedCommands.StopCsServer:
-                    break;
-                case SupportedCommands.StartValheimServer:
-                    break;
-                case SupportedCommands.StopValheimServer:
-                    break;
-                default:
-                    _logger.LogError("Unsupported command: {0}.", command);
-                    return false;
+                throw new ArgumentNullException(nameof(acceptedUserIds), "Accepted User Ids missing from application settings");
             }
 
-            throw new NotImplementedException();
+            var ids = acceptedUserIds.Split(';'); // Get accepted ids in an array.
+
+            if (Array.Exists(ids, id => id.Equals(user.Id.ToString()))) // Check if parameter userId matches to an acceptable user id.
+            {
+                _logger.LogDebug("User authorized.");
+                return;
+            }
+
+            _logger.LogWarning("User '{0}' not authorized.", user.Id);
+            throw new ArgumentException("User not authorized.", nameof(user.Id));
         }
 
         /// <summary>

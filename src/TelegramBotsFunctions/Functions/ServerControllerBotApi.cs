@@ -62,7 +62,7 @@ namespace TelegramBotsFunctions.Functions
                 }
 
                 // Process the received update and get the result object.
-                var operationSuccess = await _serverControllerBotService.ProcessBotUpdateMessage(updateObject);
+                var operationSuccess = await _serverControllerBotService.ProcessBotUpdateMessageAsync(updateObject);
                 // TODO: Handle result.
                 return new OkResult(); // Respond 200.
             }
