@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot;
@@ -93,27 +94,35 @@ namespace TelegramBotsFunctions.Services
                         await GetVirtualMachineStatus(message.Chat);
                         break;
                     case SupportedCommands.GetAcTracks: // Track listing supported without authorization.
+                        await GetAssettoCorsaTracks(message.Chat);
                         break;
                     case SupportedCommands.StartAcServer:
                         CheckUserAuthorized(message.From);
-                        break;
-                    case SupportedCommands.StopAcServer:
-                        CheckUserAuthorized(message.From);
+                        await StartAssettoCorsaServer(message.Chat, parameters);
                         break;
                     case SupportedCommands.RestartAcServer:
                         CheckUserAuthorized(message.From);
+                        await RestartAssettoCorsaServer(message.Chat, parameters);
+                        break;
+                    case SupportedCommands.StopAcServer:
+                        CheckUserAuthorized(message.From);
+                        await StopAssettoCorsaServer(message.Chat);
                         break;
                     case SupportedCommands.StartCsServer:
                         CheckUserAuthorized(message.From);
+                        await StartCounterStrikeServer(message.Chat);
                         break;
                     case SupportedCommands.StopCsServer:
                         CheckUserAuthorized(message.From);
+                        await StopCounterStrikeServer(message.Chat);
                         break;
                     case SupportedCommands.StartValheimServer:
                         CheckUserAuthorized(message.From);
+                        await StartValheimServer(message.Chat);
                         break;
                     case SupportedCommands.StopValheimServer:
                         CheckUserAuthorized(message.From);
+                        await StopValheimServer(message.Chat);
                         break;
                     default:
                         _logger.LogError("Unsupported command: {0}.", command);
@@ -127,6 +136,33 @@ namespace TelegramBotsFunctions.Services
                 _logger.LogError(ex, "Exception occurred while processing bot update message.");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Validate the message sender.
+        /// </summary>
+        /// <param name="user">User who sent the message.</param>
+        /// <returns>Nothing if successful.</returns>
+        /// <exception cref="ArgumentException">User was not authorized.</exception>
+        /// <exception cref="ArgumentNullException">Required configurations not found.</exception>
+        private void CheckUserAuthorized(User user)
+        {
+            var acceptedUserIds = Environment.GetEnvironmentVariable("AcceptedUserIds"); // Get acceptable userIds for restricted commands.
+            if (acceptedUserIds == null)
+            {
+                throw new ArgumentNullException(nameof(acceptedUserIds), "Accepted User Ids missing from application settings");
+            }
+
+            var ids = acceptedUserIds.Split(';'); // Get accepted ids in an array.
+
+            if (Array.Exists(ids, id => id.Equals(user.Id.ToString()))) // Check if parameter userId matches to an acceptable user id.
+            {
+                _logger.LogDebug("User authorized.");
+                return;
+            }
+
+            _logger.LogWarning("User '{0}' not authorized.", user.Id);
+            throw new ArgumentException("User not authorized.", nameof(user.Id));
         }
 
         /// <summary>
@@ -236,34 +272,162 @@ namespace TelegramBotsFunctions.Services
             }); 
             _logger.LogDebug("Retrieving virtual machine status..");
             await _botClient.SendTextMessageAsync(chat.Id, "Retrieving status..");
-
         }
 
         /// <summary>
-        /// Validate the message sender.
+        /// Get assetto corsa tracks.
         /// </summary>
-        /// <param name="user">User who sent the message.</param>
-        /// <returns>Nothing if successful.</returns>
-        /// <exception cref="ArgumentException">User was not authorized.</exception>
-        /// <exception cref="ArgumentNullException">Required configurations not found.</exception>
-        private void CheckUserAuthorized(User user)
+        /// <param name="chat"></param>
+        /// <returns></returns>
+        private async Task GetAssettoCorsaTracks(Chat chat)
         {
-            var acceptedUserIds = Environment.GetEnvironmentVariable("AcceptedUserIds"); // Get acceptable userIds for restricted commands.
-            if (acceptedUserIds == null)
+            _logger.LogDebug("Requesting Assetto Corsa tracks");
+            var tracks = await _gameServerControllerService.GetAssettoCorsaTracks();
+            if (!tracks.Any())
             {
-                throw new ArgumentNullException(nameof(acceptedUserIds), "Accepted User Ids missing from application settings");
-            }
-
-            var ids = acceptedUserIds.Split(';'); // Get accepted ids in an array.
-
-            if (Array.Exists(ids, id => id.Equals(user.Id.ToString()))) // Check if parameter userId matches to an acceptable user id.
-            {
-                _logger.LogDebug("User authorized.");
+                _logger.LogInformation("No tracks available");
+                await _botClient.SendTextMessageAsync(chat.Id, "No tracks available");
                 return;
             }
+            var responseBuilder = new StringBuilder();
+            responseBuilder.Append("*Available tracks on the server:*" + Environment.NewLine + Environment.NewLine + "`");
+            foreach (var track in tracks)
+            {
+                responseBuilder.Append(track + Environment.NewLine); // Add each track to the string.
+            }
+            responseBuilder.Append("`");
+            // Send response to the user.
+            await _botClient.SendTextMessageAsync(chat.Id, responseBuilder.ToString(), Telegram.Bot.Types.Enums.ParseMode.MarkdownV2);
+            _logger.LogInformation("Responded the list of tracks to user.");
+        }
 
-            _logger.LogWarning("User '{0}' not authorized.", user.Id);
-            throw new ArgumentException("User not authorized.", nameof(user.Id));
+        /// <summary>
+        /// Start Assetto Corsa server with optional parameters and respond accordingly to the user.
+        /// </summary>
+        /// <param name="chat">Chat to send response to</param>
+        /// <param name="parameters">Parameters to use when starting the server</param>
+        private async Task StartAssettoCorsaServer(Chat chat, string[] parameters)
+        {
+            var track = parameters.ElementAtOrDefault(0);
+            var trackConfiguration = parameters.ElementAtOrDefault(1);
+            _logger.LogDebug("Requesting Assetto Corsa server start with parameters: {0}, {1}", track, trackConfiguration);
+            var result = await _gameServerControllerService.StartAssettoCorsaServer(track, trackConfiguration);
+            if (result)
+            {
+                _logger.LogInformation("Server started");
+                await _botClient.SendTextMessageAsync(chat.Id, "Assetto Corsa server started.");
+                return;
+            }
+            _logger.LogError("Starting server failed");
+            await _botClient.SendTextMessageAsync(chat.Id, "Failed to start server.");
+        }
+
+        /// <summary>
+        /// Restart Assetto Corsa server with optional parameters and respond accordingly to the user.
+        /// </summary>
+        /// <param name="chat">Chat to send response to</param>
+        /// <param name="parameters">Parameters to use when restarting the server</param>
+        private async Task RestartAssettoCorsaServer(Chat chat, string[] parameters)
+        {
+            var track = parameters.ElementAtOrDefault(0);
+            var trackConfiguration = parameters.ElementAtOrDefault(1);
+            _logger.LogDebug("Requesting Assetto Corsa server restart with parameters: {0}, {1}", track, trackConfiguration);
+            var result = await _gameServerControllerService.RestartAssettoCorsaServer(track, trackConfiguration);
+            if (result)
+            {
+                _logger.LogInformation("Server restarted");
+                await _botClient.SendTextMessageAsync(chat.Id, "Assetto Corsa server restarted.");
+                return;
+            }
+            _logger.LogError("Restarting server failed");
+            await _botClient.SendTextMessageAsync(chat.Id, "Failed to restart server.");
+        }
+        /// <summary>
+        /// Stop Assetto Corsa server and respond accordingly.
+        /// </summary>
+        /// <param name="chat">Chat to reply to</param>
+        private async Task StopAssettoCorsaServer(Chat chat)
+        {
+            _logger.LogDebug("Stopping Assetto Corsa server");
+            var result = await _gameServerControllerService.StopAssettoCorsaServer();
+            if (result)
+            {
+                _logger.LogInformation("Server stopped");
+                await _botClient.SendTextMessageAsync(chat.Id, "Assetto Corsa server stopped.");
+                return;
+            }
+            _logger.LogError("Stopping server failed");
+            await _botClient.SendTextMessageAsync(chat.Id, "Failed to stop server.");
+        }
+        /// <summary>
+        /// Start Counter-Strike server and respond accordingly.
+        /// </summary>
+        /// <param name="chat">Chat to reply to</param>
+        private async Task StartCounterStrikeServer(Chat chat)
+        {
+            _logger.LogDebug("Starting Counter-Strike server");
+            var result = await _gameServerControllerService.StartCsServer();
+            if (result)
+            {
+                _logger.LogInformation("Server started");
+                await _botClient.SendTextMessageAsync(chat.Id, "Counter-Strike server started.");
+                return;
+            }
+            _logger.LogError("Starting server failed");
+            await _botClient.SendTextMessageAsync(chat.Id, "Failed to start server.");
+        }
+
+        /// <summary>
+        /// Stop Counter-Strike server and respond accordingly.
+        /// </summary>
+        /// <param name="chat">Chat to reply to</param>
+        private async Task StopCounterStrikeServer(Chat chat)
+        {
+            _logger.LogDebug("Stopping Counter-Strike server");
+            var result = await _gameServerControllerService.StopCsServer();
+            if (result)
+            {
+                _logger.LogInformation("Server stopped");
+                await _botClient.SendTextMessageAsync(chat.Id, "Counter-Strike server stopped.");
+                return;
+            }
+            _logger.LogError("Stopping server failed");
+            await _botClient.SendTextMessageAsync(chat.Id, "Failed to stop server.");
+        }
+        /// <summary>
+        /// Start Valheim server and respond accordingly.
+        /// </summary>
+        /// <param name="chat">Chat to reply to</param>
+        private async Task StartValheimServer(Chat chat)
+        {
+            _logger.LogDebug("Starting Valheim server");
+            var result = await _gameServerControllerService.StartValheimServer();
+            if (result)
+            {
+                _logger.LogInformation("Server started");
+                await _botClient.SendTextMessageAsync(chat.Id, "Valheim server started.");
+                return;
+            }
+            _logger.LogError("Starting server failed");
+            await _botClient.SendTextMessageAsync(chat.Id, "Failed to start server.");
+        }
+
+        /// <summary>
+        /// Stop Valheim server and respond accordingly.
+        /// </summary>
+        /// <param name="chat">Chat to reply to</param>
+        private async Task StopValheimServer(Chat chat)
+        {
+            _logger.LogDebug("Stopping Valheim server");
+            var result = await _gameServerControllerService.StopValheimServer();
+            if (result)
+            {
+                _logger.LogInformation("Server stopped");
+                await _botClient.SendTextMessageAsync(chat.Id, "Valheim server stopped.");
+                return;
+            }
+            _logger.LogError("Stopping server failed");
+            await _botClient.SendTextMessageAsync(chat.Id, "Failed to stop server.");
         }
 
         /// <summary>
