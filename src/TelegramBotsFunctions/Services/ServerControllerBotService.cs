@@ -78,12 +78,14 @@ namespace TelegramBotsFunctions.Services
                 {
                     case SupportedCommands.StartVirtualMachine:
                         CheckUserAuthorized(message.From);
+                        await StartVirtualMachine(message.Chat);
                         break;
                     case SupportedCommands.StopVirtualMachine:
                         CheckUserAuthorized(message.From);
+                        await StopVirtualMachine(message.Chat);
                         break;
                     case SupportedCommands.GetVirtualMachineStatus: // Status supported without authorization.
-                        var result = await _virtualMachineService.IsVirtualMachineRunningAsync();
+                        await GetVirtualMachineStatus(message.Chat);
                         break;
                     case SupportedCommands.GetAcTracks: // Track listing supported without authorization.
                         break;
@@ -113,13 +115,123 @@ namespace TelegramBotsFunctions.Services
                         return false;
                 }
 
-                throw new NotImplementedException();
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception occurred while processing bot update message.");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Method handles starting the virtual machine.
+        /// </summary>
+        /// <param name="chat"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        private async Task StartVirtualMachine(Chat chat)
+        {
+            // Currently no need for parameters.
+            _logger.LogDebug("Sending request to start virtual machine");
+            var operationCompleted = await _virtualMachineService.StartVirtualMachineAsync();
+            if (operationCompleted)
+            {
+                _logger.LogInformation("Virtual machine started.");
+                await _botClient.SendTextMessageAsync(chat.Id, "VM started");
+                return;
+            }
+            // Otherwise, operation started asynchronously. Start task with callback to send message to the user.
+            // Use callback because telegram will keep retrying the same message with a short timeout until it gets a reply.
+            _ = _virtualMachineService.GetAsynchronousOperationResultAsync(EVirtualMachineRequestType.StartRequest).ContinueWith(async t =>
+            {
+                try
+                {
+                    await t; // NOTE: This can cause lots of computation time. For a project of this scale it shouldn't matter.
+                    _logger.LogInformation("Virtual machine started.");
+                    await _botClient.SendTextMessageAsync(chat.Id, "VM started");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception occurred while waiting for asynchronous operation result.");
+                    await _botClient.SendTextMessageAsync(chat.Id, "Operation failed.");
+                }
+            });
+            _logger.LogDebug("Virtual machine starting..  ");
+            await _botClient.SendTextMessageAsync(chat.Id, "Operation started. Please wait for confirmation.");
+            
+        }
+
+        /// <summary>
+        /// Stop the virtual machine.
+        /// </summary>
+        /// <param name="chat"></param>
+        /// <returns></returns>
+        private async Task StopVirtualMachine(Chat chat)
+        {
+            // Currently no need for parameters.
+            _logger.LogDebug("Sending request to stop the virtual machine");
+            var operationCompleted = await _virtualMachineService.StopVirtualMachineAsync();
+            if (operationCompleted)
+            {
+                _logger.LogInformation("Virtual machine stopped.");
+                await _botClient.SendTextMessageAsync(chat.Id, "VM stopped");
+                return;
+            }
+            // Otherwise, operation started asynchronously. Start task with callback to send message to the user.
+            // Use callback because telegram will keep retrying the same message with a short timeout until it gets a reply.
+            _ = _virtualMachineService.GetAsynchronousOperationResultAsync(EVirtualMachineRequestType.StopRequest).ContinueWith(async t =>
+            {
+                try
+                {
+                    await t; // NOTE: This can cause lots of computation time. For a project of this scale it shouldn't matter.
+                    _logger.LogInformation("Virtual machine stopped.");
+                    await _botClient.SendTextMessageAsync(chat.Id, "VM stopped.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception occurred while waiting for asynchronous operation result.");
+                    await _botClient.SendTextMessageAsync(chat.Id, "Operation failed.");
+                }
+            });
+            _logger.LogDebug("Virtual machine stopping..  ");
+            await _botClient.SendTextMessageAsync(chat.Id, "Operation started. Please wait for confirmation.");
+        }
+
+        /// <summary>
+        /// Get virtual machine status.
+        /// </summary>
+        /// <param name="chat"></param>
+        /// <returns></returns>
+        private async Task GetVirtualMachineStatus(Chat chat)
+        {
+            _logger.LogDebug("Requesting virtual machine status");
+            var (operationCompleted, status) = await _virtualMachineService.GetVirtualMachineStatusAsync();
+            if (operationCompleted)
+            {
+                _logger.LogInformation("VM status retrieved. Status: {0}", status);
+                await _botClient.SendTextMessageAsync(chat.Id, $"Status: {status}");
+                return;
+            }
+            // Otherwise, operation started asynchronously. Start task with callback to send message to the user.
+            // Use callback because telegram will keep retrying the same message with a short timeout until it gets a reply.
+            _ = _virtualMachineService.GetAsynchronousOperationResultAsync(EVirtualMachineRequestType.StatusRequest).ContinueWith(async t =>
+            {
+                try
+                {
+                    status = (string)await t; // NOTE: This can cause lots of computation time. For a project of this scale it shouldn't matter.
+                    _logger.LogInformation("VM status retrieved. Status: {0}", status);
+                    await _botClient.SendTextMessageAsync(chat.Id, $"Status: {status}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception occurred while waiting for asynchronous operation result.");
+                    await _botClient.SendTextMessageAsync(chat.Id, "Operation failed.");
+                }
+            }); 
+            _logger.LogDebug("Retrieving virtual machine status..");
+            await _botClient.SendTextMessageAsync(chat.Id, "Retrieving status..");
+
         }
 
         /// <summary>
