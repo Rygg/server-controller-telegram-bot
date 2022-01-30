@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using TelegramBotsFunctions.Interfaces;
@@ -52,11 +53,15 @@ namespace TelegramBotsFunctions.Extensions
                 throw new ArgumentNullException(nameof(gameServerAuthKey), "Authorization key for game server missing from application settings.");
             }
 
+            // Hash without salt for now.
+            var hashedAuthKeyBytes = new Rfc2898DeriveBytes(Encoding.UTF8.GetBytes(gameServerAuthKey), new byte[16], 15000);
+            var hashedAuthKey = Convert.ToBase64String(hashedAuthKeyBytes.GetBytes(32));
+            
             serviceCollection.AddHttpClient("GameServerClient", c =>
             {
                 c.BaseAddress = new Uri(gameServerUri);
                 c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(gameServerAuthKey)));
+                c.DefaultRequestHeaders.Add("ApiKey", hashedAuthKey);
             });
         }
     }
