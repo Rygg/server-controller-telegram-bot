@@ -71,8 +71,8 @@ namespace TelegramBotsFunctions.Services
             {
                 _logger.LogDebug("Sending start assetto corsa server request.");
 
-                HttpContent? content = null;
-                // Set content if required. Otherwise send null content.
+                HttpContent content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+                // Set content if required. Otherwise send empty content.
                 if (track != null)
                 {
                     var payload = new AssettoCorsaTrackConfiguration(track, trackConfiguration); // Create payload object.
@@ -113,8 +113,8 @@ namespace TelegramBotsFunctions.Services
             {
                 _logger.LogDebug("Sending restart assetto corsa server request.");
 
-                HttpContent? content = null;
-                // Set content if required. Otherwise send null content.
+                HttpContent content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+                // Set content if required. Otherwise send empty content.
                 if (track != null)
                 {
                     var payload = new AssettoCorsaTrackConfiguration(track, trackConfiguration); // Create payload object.
